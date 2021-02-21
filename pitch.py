@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import sys, time
 from struct import unpack
@@ -18,9 +18,21 @@ TRADE_S = 0x2B
 TRADE_BREAK = 0x2C
 END_OF_SESSION = 0x2D
 
-MESSAGE_DESCRIPTIONS = {0x20: 'Time', 0x21: 'Add Order - Long', 0x22: 'Add Order - Short', 0x23: 'Order Executed', 0x24: 'Order Executed at Price/Size',
-                        0x25: 'Reduce Size - Long', 0x26: 'Reduce Size - Short', 0x27: 'Modify Order - Long', 0x28: 'Modify Order - Short',
-                        0x29: 'Delete Order', 0x2A: 'Trade - Long', 0x2B: 'Trade - Short', 0x2C: 'Trade Break', 0x2D: 'End of Session',}
+MESSAGE_DESCRIPTIONS = {
+    0x20: 'Time',
+    0x21: 'Add Order - Long',
+    0x22: 'Add Order - Short',
+    0x23: 'Order Executed',
+    0x24: 'Order Executed at Price/Size',
+    0x25: 'Reduce Size - Long',
+    0x26: 'Reduce Size - Short',
+    0x27: 'Modify Order - Long',
+    0x28: 'Modify Order - Short',
+    0x29: 'Delete Order',
+    0x2A: 'Trade - Long',
+    0x2B: 'Trade - Short',
+    0x2C: 'Trade Break',
+    0x2D: 'End of Session',}
 
 class PitchMessage(object):
 
@@ -63,10 +75,10 @@ class PitchMessage(object):
 
     def __repr__(self):
         return '%s %s %s' % (self.__class__.__name__, MESSAGE_DESCRIPTIONS[self.type].upper(), self.__dict__)
-    
+
 
 class PitchMessageReader(object):
-    
+
     def __init__(self, stream):
         self.stream = stream
         self.available = 0
@@ -76,8 +88,16 @@ class PitchMessageReader(object):
             buf = self.stream.read(8)
             if buf is None or len(buf) < 8:
                 return None
+            # H = unsigned short (2 bytes)
+            # B = unsigned char (1 byte)
+            # L = unsigned long (4 bytes)
             length, count, unit, sequence = unpack('<HBBL', buf)
             self.available = count
+            print(f'Length: {length}')
+            print(f'Count: {count}')
+            print(f'Unit: {unit}')
+            print(f'Sequence: {sequence}')
+        import sys; sys.exit(0)
 
         msg_len, msg_type = unpack('<BB', self.stream.read(2))
         msg_payload = self.stream.read(msg_len - 2)
@@ -85,43 +105,54 @@ class PitchMessageReader(object):
             self.available -= 1
             return PitchMessage(msg_type, msg_payload)
         return None
-        
+
     def close(self):
         self.stream.close()
-        
+
     def __enter__(self):
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         try:
             self.close()
         except:
             pass
         return False
-    
-def main():
-    start = time.time()
-    n = 0
-    max_price = 0
-    min_price = sys.maxint
-    symbols = set()
-    order_ids = set()
-    with PitchMessageReader(sys.stdin) as reader:
-        while True:
-            msg = reader.read_message()
-            if msg is None:
-                break
-            n += 1
-            if hasattr(msg, 'price'):
-                min_price = min(min_price, msg.price)
-                max_price = max(max_price, msg.price)
-            if hasattr(msg, 'symbol'):
-                symbols.add(msg.symbol.strip())
-            if hasattr(msg, 'order_id'):
-                order_ids.add(msg.order_id)
-            print msg
 
-    print 'Parsed %s message(s) in %s second(s), symbols was %s, orders was %s, min price was %s and max price was %s.' % (n, (time.time() - start), ','.join(symbols), len(order_ids), min_price, max_price)
+def main():
+    with open('testdata/pitch', 'rb') as pitch_fin:
+        start = time.time()
+        n = 0
+        max_price = 0
+        min_price = 4000000
+        symbols = set()
+        order_ids = set()
+
+        with PitchMessageReader(pitch_fin) as reader:
+            while True:
+                msg = reader.read_message()
+                if msg is None:
+                    break
+                n += 1
+                if hasattr(msg, 'price'):
+                    min_price = min(min_price, msg.price)
+                    max_price = max(max_price, msg.price)
+                if hasattr(msg, 'symbol'):
+                    symbols.add(msg.symbol.strip())
+                if hasattr(msg, 'order_id'):
+                    order_ids.add(msg.order_id)
+                print(msg)
+    
+        stop = time.time()
+
+        print(f'total time: {(stop-start):.4f}s')
+        print(f'total # of messages: {n}')
+        print(f'total # of symbols: {len(symbols)}')
+        print(f'total # of orders: {len(order_ids)}')
+        print(f'minimum price was: {min_price}')
+        print(f'maximum price was: {max_price}')
+        for symbol in sorted(symbols):
+            print(f'{symbol}')
 
 
 if __name__ == '__main__':

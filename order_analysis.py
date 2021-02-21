@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import sys, time
 from collections import defaultdict
@@ -25,7 +25,8 @@ class NaiveOrderBook(object):
         self.symbol = symbol
         self.bids_by_price = defaultdict(dict)
         self.asks_by_price = defaultdict(dict)
-        self.ask_min = sys.maxint
+        self.ask_min = 4000000
+        #self.ask_min = sys.maxint
         self.bid_max = 0
 
     def __repr__(self):
@@ -153,11 +154,11 @@ def main():
             duration_by_symbol[o.symbol] += (o.exit_time - o.entry_time)
             count_by_symbol[o.symbol] += 1
 
-    print 'symbol avg duration'
+    print('symbol avg duration')
     for s, d in duration_by_symbol.items():
-        print '%s %12.2f' % (s, d / count_by_symbol[s])
+        print('%s %12.2f' % (s, d / count_by_symbol[s]))
         
-    print 'Parsed %s message(s) in %s sec(s).' % (n, (time.time() - start))
+    print('Parsed %s message(s) in %s sec(s).' % (n, (time.time() - start)))
     
     
 if __name__ == '__main__':
